@@ -3,7 +3,7 @@
    Offline-first PWA · IndexedDB storage · WebAudio SFX
    ============================================================= */
 'use strict';
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);

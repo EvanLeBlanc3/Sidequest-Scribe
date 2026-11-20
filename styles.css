@@ -17,7 +17,7 @@ svg.ui { width: 1.25em; height: 1.25em; fill: none; stroke: currentColor; stroke
 
 /* ---------- App frame + rotation lock ---------- */
 #app {
-  --sat: calc(env(safe-area-inset-top, 0px) + 8px);
+  --sat: calc(env(safe-area-inset-top, 0px) + 16px);
   --sab: env(safe-area-inset-bottom, 0px);
   position: fixed; left: 0; top: 0; width: 100vw; height: var(--vh);
   overflow: hidden; background: var(--wall-b);
