@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sidequest Scribe">
+<meta name="theme-color" content="#170c26">
+<title>Sidequest Scribe</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Cinzel:wght@600;800&family=MedievalSharp&family=Orbitron:wght@600;800&family=Patrick+Hand&family=Pirata+One&family=Press+Start+2P&family=Special+Elite&family=Uncial+Antiqua&family=VT323&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="classic" data-phase="day">
+<div id="app">
+
+  <!-- ============ LIBRARY ============ -->
+  <section id="library" class="screen active">
+    <div class="scene" id="scene">
+      <div class="wall"></div>
+      <div class="winlight"></div>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-ic" id="brandIc"></span>
+          <div><h1>Sidequest Scribe</h1><small id="libStats">Your quest library</small></div>
+        </div>
+        <button class="iconbtn" id="btnSettings" aria-label="Settings"></button>
+      </header>
+
+      <button class="player" id="playerChip" aria-label="Player profile">
+        <span class="lv">LV<b id="pLv">1</b></span>
+        <span class="pinfo"><span id="pTitle">Wandering Novice</span><span class="xpbar"><i id="pXP"></i></span></span>
+      </button>
+
+      <div class="sconce"><div class="flame"><i></i></div><div class="holder"></div><div class="neon-sign"></div></div>
+
+      <div class="window-wrap">
+        <div class="window" id="window" aria-label="Window showing the sky outside">
+          <canvas id="skycv"></canvas>
+          <div class="glass"></div><div class="mull-v"></div><div class="mull-h"></div>
+        </div>
+        <div class="sill"></div>
+        <div class="wtip" id="wtip"></div>
+      </div>
+
+      <div class="bookcase">
+        <div class="crown"></div>
+        <div class="shelves" id="shelves"></div>
+      </div>
+      <canvas id="dust"></canvas>
+    </div>
+    <footer class="libbar" id="libbar"></footer>
+  </section>
+
+  <!-- ============ JOURNAL ============ -->
+  <section id="journal" class="screen">
+    <header class="jhead" id="jhead"></header>
+    <nav class="jtabs" id="jtabs">
+      <button data-tab="log" class="on"></button>
+      <button data-tab="gallery"></button>
+      <button data-tab="stats"></button>
+    </nav>
+    <div class="searchbar" id="searchbar" hidden>
+      <div class="srow"><input id="searchIn" type="search" placeholder="Search this journal…" autocomplete="off"><button class="jbtn" id="sortBtn" aria-label="Sort"></button></div>
+      <div class="tagrow" id="filterTags"></div>
+    </div>
+    <div class="paper" id="paper">
+      <div class="pane active" id="paneLog"><div id="entries"></div></div>
+      <div class="pane" id="paneGallery"></div>
+      <div class="pane" id="paneStats"></div>
+    </div>
+    <form class="composer" id="composer" autocomplete="off">
+      <div class="tagrow" id="tagRow"></div>
+      <div class="ppreview" id="ppreview" hidden></div>
+      <div class="crow">
+        <label class="cbtn" id="camBtn" aria-label="Add photo"><input type="file" id="photoIn" accept="image/*" hidden></label>
+        <textarea id="entryText" rows="1" placeholder="Log your progress…" enterkeyhint="send"></textarea>
+        <button type="submit" class="cbtn save" id="saveBtn" aria-label="Save entry"></button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ============ OVERLAYS ============ -->
+  <div id="sheet" class="sheet"><div class="sheet-bg" id="sheetBg"></div><div class="sheet-panel"><div class="grab"></div><button class="sheet-x" id="sheetX" aria-label="Close"></button><div class="sheet-body" id="sheetBody"></div></div></div>
+  <div id="modal" class="modal" hidden></div>
+  <div id="lightbox" class="lightbox" hidden></div>
+  <div id="toasts"></div>
+  <canvas id="fx"></canvas>
+  <input type="file" id="importIn" accept="application/json,.json" hidden>
+
+  <!-- ============ INTRO ============ -->
+  <div id="intro">
+    <div class="logo-book"><div class="lb-pages"></div><div class="lb-cover" id="lbCover"></div><span class="lb-spark"></span><span class="lb-spark"></span><span class="lb-spark"></span><span class="lb-spark"></span></div>
+    <h1 class="logo">Sidequest<span>SCRIBE</span></h1>
+    <p class="itag">A quest log for every adventure</p>
+    <div id="introAction"></div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
