@@ -646,3 +646,14 @@ body[data-theme=pixel] .noresults b { font-size: 11px; line-height: 1.6; }
 /* editor: pinned preview */
 .pv-sticky { position: sticky; top: 0; z-index: 6; margin: 0 -16px; padding: 4px 16px 10px; background: var(--ui-bg); box-shadow: 0 10px 14px -8px rgba(0,0,0,.7); }
 .pv-sticky .preview-stage { height: 196px; padding: 0 0 22px; }
+
+/* ---------- v1.1.2 title fitting ---------- */
+.book .stitle { flex: 0 0 auto; max-height: none; text-overflow: clip; line-height: 1.1; }
+.cover .ctitle { flex: 0 0 auto; max-width: 100%; max-height: none; overflow: hidden; overflow-wrap: normal; word-break: normal; hyphens: manual; line-height: 1.12; }
+/* Cloth novel: title sits in its own cream label so it never spills onto the cloth */
+.cover.t-novel::before { inset: 8px 8px 8px 13px; height: auto; background: none; opacity: .65; border-width: 2px; }
+.cover.t-novel .ctitle { background: rgba(255,248,230,.94); color: #2a1a0e; text-shadow: none; padding: 6px 8px; border-radius: 3px; box-shadow: 0 0 0 2px var(--trim), 0 2px 4px rgba(0,0,0,.35); }
+.jtitle h2 { font-size: calc(var(--fs) * 1.6); }
+.toast > span:last-child { min-width: 0; }
+.toast b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flybook .cover > * { transition: opacity .25s .25s; }

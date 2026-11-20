@@ -3,7 +3,7 @@
    Offline-first PWA · IndexedDB storage · WebAudio SFX
    ============================================================= */
 'use strict';
-const VERSION = '1.1.1';
+const VERSION = '1.1.2';
 
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -331,17 +331,61 @@ function bookVars(b) { const f = fontOf(b); return `--c:${b.color};--trim:${b.tr
 function spineHTML(b, cls = '', extra = '') {
   const { h, w } = dimsOf(b);
   return `<button class="book t-${b.type} ${cls}" data-id="${b.id}" style="${bookVars(b)}--h:${h}px;--w:${w}px;background:${SPINE_SHADE}, ${patternCSS(b.pattern)}, ${b.color};${extra}" aria-label="${esc(b.title)}">
-    <span class="band b1"></span><span class="emb">${icon(b.emblem)}</span><span class="stitle">${esc(b.title || 'Untitled')}</span><span class="band b2"></span></button>`;
+    <span class="band b1"></span><span class="emb">${icon(b.emblem)}</span><span class="stitle" data-full="${esc(b.title || 'Untitled')}">${esc(b.title || 'Untitled')}</span><span class="band b2"></span></button>`;
 }
 function coverHTML(b, style = '') {
   return `<div class="cover t-${b.type}" style="${bookVars(b)}background:${COVER_SHADE}, ${patternCSS(b.pattern)}, ${b.color};${style}">
-    <span class="cemb">${icon(b.emblem)}</span><span class="ctitle">${esc(b.title || 'Untitled Quest')}</span><span class="cplat">${esc(b.platform || '')}</span></div>`;
+    <span class="cemb">${icon(b.emblem)}</span><span class="ctitle" data-full="${esc(b.title || 'Untitled Quest')}">${esc(b.title || 'Untitled Quest')}</span><span class="cplat">${esc(b.platform || '')}</span></div>`;
 }
 const miniSpine = (type) => `<span class="book mini t-${type}" style="--c:#7a1f2b;--trim:#e8c15a;--h:46px;--w:18px;background:${SPINE_SHADE}, #7a1f2b"><span class="band b1"></span><span class="band b2"></span></span>`;
 // A book lying on its side: outer box is h×w, inner spine rotated -90°
 function flatHTML(b, cls = '', outer = '', st = '') {
   const { h, w } = dimsOf(b);
   return `<div class="flat ${outer}" style="${st}width:${h}px;height:${w}px;left:${(hashN(b.id) % 9) - 4}px"><div class="rot" style="width:${w}px;height:${h}px;left:${(h - w) / 2}px;top:${(w - h) / 2}px">${spineHTML(b, cls)}</div></div>`;
+}
+
+/* ---------- text fitting: titles always stay inside their book ---------- */
+const px = v => parseFloat(v) || 0;
+function truncateToFit(el, full, fits) {
+  let lo = 1, hi = full.length - 1, best = 1;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; el.textContent = full.slice(0, mid).trimEnd() + '…'; if (fits()) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+  el.textContent = full.slice(0, best).trimEnd() + '…';
+}
+function shrinkToFit(el, fits, minRatio, minPx) {
+  const base = px(getComputedStyle(el).fontSize); if (fits()) return true;
+  let lo = Math.max(minPx, base * minRatio), hi = base; el.style.fontSize = lo + 'px';
+  if (!fits()) return false;
+  for (let i = 0; i < 7; i++) { const mid = (lo + hi) / 2; el.style.fontSize = mid + 'px'; if (fits()) lo = mid; else hi = mid; }
+  el.style.fontSize = lo + 'px'; return true;
+}
+function fitSpine(el) {
+  const book = el.closest('.book'); if (!book || !book.clientHeight) return;
+  const full = el.dataset.full ?? el.textContent; el.dataset.full = full;
+  el.textContent = full; el.style.fontSize = ''; el.style.maxHeight = 'none'; el.style.flexShrink = '0'; el.title = '';
+  const cs = getComputedStyle(book), emb = book.querySelector('.emb'), ecs = emb && getComputedStyle(emb);
+  const avail = book.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) - (emb ? emb.offsetHeight + px(ecs.marginTop) + px(ecs.marginBottom) : 0) - 3;
+  const availW = book.clientWidth - 4; if (avail < 12) return;
+  const fits = () => el.offsetHeight <= avail && el.offsetWidth <= availW;
+  if (!shrinkToFit(el, fits, .62, 7)) truncateToFit(el, full, fits);
+  el.style.maxHeight = avail + 'px';
+}
+function fitCover(el) {
+  const cover = el.closest('.cover'); if (!cover || !cover.clientHeight) return;
+  const full = el.dataset.full ?? el.textContent; el.dataset.full = full;
+  el.textContent = full; el.style.fontSize = ''; el.style.overflowWrap = '';
+  const cs = getComputedStyle(cover), others = [...cover.children].filter(c => c !== el), gap = px(cs.rowGap) || 8;
+  const avail = cover.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) - others.reduce((s, c) => s + c.offsetHeight, 0) - gap * others.length - 2;
+  if (avail < 12) return;
+  const fits = () => el.offsetHeight <= avail && el.scrollWidth <= el.clientWidth + 1;
+  if (shrinkToFit(el, fits, .55, 8)) return;
+  el.style.overflowWrap = 'anywhere'; if (!fits()) truncateToFit(el, full, fits);
+}
+function fitLine(el) {
+  el.style.fontSize = ''; if (!el.clientWidth) return;
+  shrinkToFit(el, () => el.scrollWidth <= el.clientWidth + 1, .68, 11);
+}
+function fitText(root = document) {
+  $$('.stitle', root).forEach(fitSpine); $$('.ctitle', root).forEach(fitCover); $$('.jtitle h2', root).forEach(fitLine);
 }
 
 const DECOS = {
@@ -425,7 +469,7 @@ function renderLibrary(drop = false, freshId = null) {
   let extra = '';
   if (!S.books.length) extra = `<div class="hint" style="top:56px">◀ Tap to start your first journal</div>`;
   else if (searching && !books.length) extra = `<div class="noresults"><b>No tomes found</b>Nothing on the shelves matches “${esc(S.libQ)}”.</div>`;
-  wrap.innerHTML = html + extra;
+  wrap.innerHTML = html + extra; fitText(wrap);
   $('#libStats').textContent = searching ? `${books.length} of ${S.books.length} journals match` : libStatsText();
   renderLibBar();
 }
@@ -466,9 +510,11 @@ async function openBook(id, el) {
       const r = el.getBoundingClientRect();
       const fly = document.createElement('div'); fly.className = 'flybook';
       fly.innerHTML = `<div class="fb-pages paper" data-paper="${b.paper}" style="position:absolute;margin:0"></div><div class="fb-cover">${coverHTML(b)}</div>`;
-      Object.assign(fly.style, { left: (r.left - ar.left) + 'px', top: (r.top - ar.top) + 'px', width: r.width + 'px', height: r.height + 'px' });
-      app.appendChild(fly); void fly.offsetWidth;
       const W = Math.min(ar.width * .68, 290), H = W * 1.36;
+      fly.style.transition = 'none'; Object.assign(fly.style, { left: '0px', top: '0px', width: W + 'px', height: H + 'px' });
+      app.appendChild(fly); fitText(fly);
+      Object.assign(fly.style, { left: (r.left - ar.left) + 'px', top: (r.top - ar.top) + 'px', width: r.width + 'px', height: r.height + 'px' });
+      void fly.offsetWidth; fly.style.transition = '';
       fly.classList.add('grow'); Object.assign(fly.style, { left: (ar.width - W) / 2 + 'px', top: (ar.height - H) / 2 + 'px', width: W + 'px', height: H + 'px' });
       SFX.play('whoosh'); await sleep(540);
       fly.classList.add('opening'); SFX.play('open');
@@ -496,10 +542,10 @@ function renderJournal() {
   head.style.background = `${HEAD_SHADE}, ${patternCSS(b.pattern)}, ${b.color}`;
   head.innerHTML = `<button class="jbtn" id="jBack" aria-label="Back to shelf">${ui('back')}</button>
     <span class="jemb">${icon(b.emblem)}</span>
-    <div class="jtitle"><h2>${esc(b.title)}</h2><small>${esc(b.platform)} · ${arr.length} entr${arr.length === 1 ? 'y' : 'ies'}</small></div>
+    <div class="jtitle"><h2 data-full="${esc(b.title)}">${esc(b.title)}</h2><small>${esc(b.platform)} · ${arr.length} entr${arr.length === 1 ? 'y' : 'ies'}</small></div>
     <button class="jbtn" id="jSearch" aria-label="Search">${ui('search')}</button>
     <button class="jbtn" id="jEdit" aria-label="Customize">${ui('palette')}</button>`;
-  $('#paper').dataset.paper = b.paper;
+  $('#paper').dataset.paper = b.paper; fitText(head);
   $$('#jtabs button').forEach(t => t.classList.toggle('on', t.dataset.tab === J.tab));
   $$('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane' + J.tab[0].toUpperCase() + J.tab.slice(1)));
   $('#composer').hidden = J.tab !== 'log';
@@ -720,7 +766,7 @@ function poseDemoHTML(d) {
 }
 function renderPreview(anim = 'pop') {
   const st = $('#pvStage'); if (!st) return; const d = { ...E.draft, id: E.draft.id || 'preview', title: E.draft.title || 'Untitled Quest' };
-  st.innerHTML = poseDemoHTML(d) + coverHTML(d); st.classList.remove('pop', 'spin'); void st.offsetWidth; if (anim) st.classList.add(anim);
+  st.innerHTML = poseDemoHTML(d) + coverHTML(d); fitText(st); st.classList.remove('pop', 'spin'); void st.offsetWidth; if (anim) st.classList.add(anim);
 }
 function syncEditorUI() {
   const d = E.draft;
@@ -1146,7 +1192,7 @@ function bindEvents() {
   $('#sheetBg').onclick = () => { SFX.play('tap'); sheetClose(); };
   $('#sheetX').onclick = () => { SFX.play('tap'); sheetClose(); };
   $('#sheetBody').addEventListener('input', e => {
-    if (e.target.id === 'edTitle') { E.draft.title = e.target.value; const st = $('#pvStage'); if (st) st.querySelectorAll('.stitle,.ctitle').forEach(n => n.textContent = e.target.value || 'Untitled Quest'); }
+    if (e.target.id === 'edTitle') { E.draft.title = e.target.value; const st = $('#pvStage'); if (st) { st.querySelectorAll('.stitle,.ctitle').forEach(n => { n.dataset.full = e.target.value || 'Untitled Quest'; }); fitText(st); } }
     if (e.target.id === 'edColor') { E.draft.color = e.target.value; syncEditorUI(); renderPreview(null); }
     if (e.target.id === 'volIn') { S.settings.volume = +e.target.value; SFX.setVol(S.settings.volume); saveSettings(); }
   });
@@ -1194,6 +1240,8 @@ async function boot() {
   if (!S.settings.introDone) introPressStart(); else { introReturning(); skyMaintenance(); }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { });
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => { });
+  if (document.fonts) { document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => fitText()); }
+  document.fonts && document.fonts.ready.then(() => fitText());
   document.fonts && document.fonts.ready.then(() => { if ($('#library').classList.contains('active') && $('#intro') == null) renderLibrary(false); });
 }
 boot();
