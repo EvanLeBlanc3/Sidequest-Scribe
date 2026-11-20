@@ -345,8 +345,8 @@ body[data-theme=pixel] .hint { font-size: 8px; }
 .flybook .fb-pages::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(255,240,200,.9), transparent 65%); animation: pageglow 1s ease-out both; }
 .flybook .fb-cover { position: absolute; inset: 0; transform-origin: left center; transition: transform .7s cubic-bezier(.6,0,.3,1); transform-style: preserve-3d; }
 .flybook .fb-cover .cover { width: 100%; height: 100%; }
-.flybook .cover > * { opacity: 0; transition: opacity .25s .2s; }
-.flybook.grow .cover > * { opacity: 1; }
+.flybook .cover .clabel > * { opacity: 0; transition: opacity .25s .2s; }
+.flybook.grow .cover .clabel > * { opacity: 1; }
 .flybook.opening .fb-cover { transform: rotateY(-165deg); }
 .flybook.fade { opacity: 0; transform: scale(1.35); }
 
@@ -656,4 +656,19 @@ body[data-theme=pixel] .noresults b { font-size: 11px; line-height: 1.6; }
 .jtitle h2 { font-size: calc(var(--fs) * 1.6); }
 .toast > span:last-child { min-width: 0; }
 .toast b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.flybook .cover > * { transition: opacity .25s .25s; }
+.flybook .cover .clabel > * { transition: opacity .25s .25s; }
+
+/* ---------- v1.1.3 cover label layout ---------- */
+.cover .clabel { display: contents; }
+.cover .clabel > * { position: relative; z-index: 2; flex: 0 0 auto; }
+.cover .cplat { max-width: 100%; white-space: nowrap; overflow: hidden; }
+/* Cartridge: emblem, title and console all live inside the real cream label */
+.cover.t-cartridge { padding: 26px 12px 14px; justify-content: flex-start; }
+.cover.t-cartridge::before { display: none; }
+.cover.t-cartridge .clabel { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  position: relative; z-index: 2; flex: 1 1 auto; min-height: 0; width: 100%; overflow: hidden;
+  background: #f3efe6; border: 3px solid var(--trim); border-radius: 4px; padding: 6px 5px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12), 0 2px 3px rgba(0,0,0,.35); }
+.cover.t-cartridge .cemb { font-size: 26px; }
+.cover.t-cartridge .ctitle { flex: 0 1 auto; min-height: 0; }
+.cover.t-cartridge .cplat { padding-top: 3px; border-top: 1px solid rgba(0,0,0,.18); }

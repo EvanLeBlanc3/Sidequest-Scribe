@@ -3,7 +3,7 @@
    Offline-first PWA · IndexedDB storage · WebAudio SFX
    ============================================================= */
 'use strict';
-const VERSION = '1.1.2';
+const VERSION = '1.1.3';
 
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -335,7 +335,7 @@ function spineHTML(b, cls = '', extra = '') {
 }
 function coverHTML(b, style = '') {
   return `<div class="cover t-${b.type}" style="${bookVars(b)}background:${COVER_SHADE}, ${patternCSS(b.pattern)}, ${b.color};${style}">
-    <span class="cemb">${icon(b.emblem)}</span><span class="ctitle" data-full="${esc(b.title || 'Untitled Quest')}">${esc(b.title || 'Untitled Quest')}</span><span class="cplat">${esc(b.platform || '')}</span></div>`;
+    <div class="clabel"><span class="cemb">${icon(b.emblem)}</span><span class="ctitle" data-full="${esc(b.title || 'Untitled Quest')}">${esc(b.title || 'Untitled Quest')}</span><span class="cplat">${esc(b.platform || '')}</span></div></div>`;
 }
 const miniSpine = (type) => `<span class="book mini t-${type}" style="--c:#7a1f2b;--trim:#e8c15a;--h:46px;--w:18px;background:${SPINE_SHADE}, #7a1f2b"><span class="band b1"></span><span class="band b2"></span></span>`;
 // A book lying on its side: outer box is h×w, inner spine rotated -90°
@@ -369,12 +369,20 @@ function fitSpine(el) {
   if (!shrinkToFit(el, fits, .62, 7)) truncateToFit(el, full, fits);
   el.style.maxHeight = avail + 'px';
 }
+function fitPlat(el) {
+  el.style.fontSize = ''; el.style.letterSpacing = ''; if (!el.clientWidth) return;
+  const ok = () => el.scrollWidth <= el.clientWidth + 1; if (ok()) return;
+  el.style.letterSpacing = '.06em'; if (ok()) return;
+  shrinkToFit(el, ok, .6, 6);
+}
 function fitCover(el) {
   const cover = el.closest('.cover'); if (!cover || !cover.clientHeight) return;
   const full = el.dataset.full ?? el.textContent; el.dataset.full = full;
   el.textContent = full; el.style.fontSize = ''; el.style.overflowWrap = '';
-  const cs = getComputedStyle(cover), others = [...cover.children].filter(c => c !== el), gap = px(cs.rowGap) || 8;
-  const avail = cover.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) - others.reduce((s, c) => s + c.offsetHeight, 0) - gap * others.length - 2;
+  const label = el.closest('.clabel'), boxed = label && getComputedStyle(label).display !== 'contents', box = boxed ? label : cover;
+  const plat = cover.querySelector('.cplat'); if (plat) fitPlat(plat);
+  const cs = getComputedStyle(boxed ? label : cover), others = [...cover.querySelectorAll('.cemb,.cplat')], gap = px(cs.rowGap) || 8;
+  const avail = box.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) - others.reduce((s, c) => s + c.offsetHeight, 0) - gap * others.length - 2;
   if (avail < 12) return;
   const fits = () => el.offsetHeight <= avail && el.scrollWidth <= el.clientWidth + 1;
   if (shrinkToFit(el, fits, .55, 8)) return;

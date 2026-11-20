@@ -1,5 +1,5 @@
 /* Sidequest Scribe service worker — offline app shell */
-const CACHE = 'sidequest-scribe-v1.1.2';
+const CACHE = 'sidequest-scribe-v1.1.3';
 const FONT_CACHE = 'sidequest-scribe-fonts';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
