@@ -3,7 +3,7 @@
    Offline-first PWA · IndexedDB storage · WebAudio SFX
    ============================================================= */
 'use strict';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -16,6 +16,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cssVar = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+const hashN = s => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); };
 const dayKey = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const startOfDay = ts => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const fmtStamp = ts => { const d = new Date(ts); return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); };
@@ -54,7 +55,7 @@ const UI = {
   clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2', pin: 'M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11zM12 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
   refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7', sort: 'M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4', play: 'M7 4l13 8-13 8z',
   book: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', image: 'M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15 9h.01',
-  chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2', trophy: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M10 17h4v4h-4z'
+  chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2'
 };
 const icon = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="${EMB[n] || EMB.star}"/></svg>`;
 const ui = n => `<svg class="ui" viewBox="0 0 24 24" aria-hidden="true"><path d="${UI[n]}"/></svg>`;
@@ -82,6 +83,7 @@ const INKS = [
 const PAPERS = [
   { id: 'parchment', name: 'Parchment', sw: '#ecd8ab' }, { id: 'lined', name: 'Lined', sw: '#fbf8ef' }, { id: 'grid', name: 'Graph', sw: '#e6eef0' },
   { id: 'midnight', name: 'Midnight', sw: '#22253a' }, { id: 'terminal', name: 'Terminal', sw: '#0b1d10' }];
+const POSES = [['auto', 'Auto'], ['upright', 'Standing'], ['lean', 'Leaning'], ['flat', 'Lying Flat']];
 const PLATFORMS = ['PC', 'PlayStation', 'Xbox', 'Switch', 'Steam Deck', 'Mobile', 'Retro', 'VR', 'Other'];
 const TAGS = [
   { id: 'note', name: 'Note', icon: 'quill', color: '#8a6f4a' }, { id: 'quest', name: 'Quest', icon: 'star', color: '#d39a17' },
@@ -89,12 +91,19 @@ const TAGS = [
   { id: 'lore', name: 'Lore', icon: 'book', color: '#6a4bb0' }, { id: 'death', name: 'Died', icon: 'skull', color: '#4d4d55' },
   { id: 'secret', name: 'Secret', icon: 'key', color: '#2b6cb0' }, { id: 'win', name: 'Milestone', icon: 'flame', color: '#e0621f' }];
 const THEMES = [
-  { id: 'classic', name: 'Grand Oak Library', desc: 'Candlelit oak & leather', a: '#4d2e1c', b: '#21120a', x: '#f4b942', tc: '#21120a' },
-  { id: 'arcane', name: 'Arcane Spire', desc: 'Starlit stone & crystals', a: '#33255a', b: '#100a22', x: '#7ef3ff', tc: '#100a22' },
-  { id: 'neon', name: 'Neon Archive', desc: 'Synthwave data stacks', a: '#121a3d', b: '#03040c', x: '#ff3df2', tc: '#03040c' },
-  { id: 'pixel', name: 'Pixel Dungeon', desc: '8-bit bricks & torches', a: '#4d4d5c', b: '#1c1c24', x: '#ffd23f', tc: '#1c1c24' },
-  { id: 'frost', name: 'Frostkeep Vault', desc: 'Icy halls of lore', a: '#2d4f6d', b: '#0a1726', x: '#bdf3ff', tc: '#0a1726' },
-  { id: 'starship', name: 'Starship Datavault', desc: 'Sci-fi records deck', a: '#26303a', b: '#080c10', x: '#5cff9d', tc: '#080c10' }];
+  { id: 'classic', name: 'Grand Oak Library', desc: 'Candlelit oak & leather', a: '#4d2e1c', b: '#21120a', x: '#f4b942' },
+  { id: 'arcane', name: 'Arcane Spire', desc: 'Starlit stone & crystals', a: '#33255a', b: '#100a22', x: '#7ef3ff' },
+  { id: 'neon', name: 'Neon Archive', desc: 'Synthwave data stacks', a: '#121a3d', b: '#03040c', x: '#ff3df2' },
+  { id: 'pixel', name: 'Pixel Dungeon', desc: '8-bit bricks & torches', a: '#4d4d5c', b: '#1c1c24', x: '#ffd23f' },
+  { id: 'frost', name: 'Frostkeep Vault', desc: 'Icy halls of lore', a: '#2d4f6d', b: '#0a1726', x: '#bdf3ff' },
+  { id: 'starship', name: 'Starship Datavault', desc: 'Sci-fi records deck', a: '#26303a', b: '#080c10', x: '#5cff9d' },
+  { id: 'haunted', name: 'Haunted Manor', desc: 'Cobwebs & ghostly candles', a: '#2e2433', b: '#0c080f', x: '#9dffb0' },
+  { id: 'sakura', name: 'Sakura Tea House', desc: 'Moon window & petals', a: '#5c2f3c', b: '#24121a', x: '#ffb7c5' },
+  { id: 'forge', name: 'Dwarven Forge', desc: 'Iron, stone & embers', a: '#3d2a22', b: '#120a07', x: '#ff8a2a' },
+  { id: 'atlantis', name: 'Sunken Atlantis', desc: 'Brass portholes & bubbles', a: '#0f4a55', b: '#03141c', x: '#6ff7e1' }];
+const DUST_MODE = { neon: 'pixel', pixel: 'pixel', starship: 'pixel', frost: 'flake', sakura: 'petal', forge: 'ember', atlantis: 'bubble' };
+const SORTS = [['custom', 'Shelf Order'], ['recent', 'Last Played'], ['title', 'A–Z'], ['newest', 'Newest'], ['platform', 'Platform'], ['color', 'Color'], ['entries', 'Most Entries'], ['type', 'Book Type']];
+const ARRANGE = [['tidy', 'Tidy'], ['cozy', 'Cozy'], ['chaotic', 'Chaotic']];
 const ACH = {
   first_book: { n: 'Once Upon a Save File', d: 'Create your first journal', xp: 50, i: 'book' },
   first_entry: { n: 'Dear Diary, I Died Again', d: 'Write your first entry', xp: 30, i: 'quill' },
@@ -109,15 +118,16 @@ const ACH = {
   backup: { n: 'Save Scummer', d: 'Export a backup of your library', xp: 50, i: 'shield' },
   decor: { n: 'Interior Decorator', d: 'Change the library theme', xp: 25, i: 'potion' },
   fashion: { n: 'Cover Story', d: 'Re-customize an existing journal', xp: 25, i: 'heart' },
-  dice: { n: 'Natural 20', d: 'Roll a 20 on the shelf die', xp: 20, i: 'dice' }
+  dice: { n: 'Natural 20', d: 'Roll a 20 on the shelf die', xp: 20, i: 'dice' },
+  curtains: { n: 'Do Not Disturb', d: 'Close the curtains for some focused grinding', xp: 15, i: 'moon' }
 };
 const LEVEL_TITLES = [[1, 'Wandering Novice'], [2, 'Apprentice Scribe'], [3, 'Quest Scrivener'], [5, 'Lorekeeper'], [7, 'Archivist'], [10, 'Grand Chronicler'], [15, 'Legendary Loremaster'], [20, 'Mythic Scribe']];
-const DEFAULT_BOOK = { title: '', platform: 'PC', type: 'tome', color: '#7a1f2b', trim: '#e8c15a', pattern: 'none', emblem: 'sword', font: 'cinzel', ink: 'caveat', paper: 'parchment', height: 'm', thick: 'm' };
+const DEFAULT_BOOK = { title: '', platform: 'PC', type: 'tome', color: '#7a1f2b', trim: '#e8c15a', pattern: 'none', emblem: 'sword', font: 'cinzel', ink: 'caveat', paper: 'parchment', height: 'm', thick: 'm', pose: 'auto' };
 
 /* ---------- state ---------- */
-const S = { books: [], entries: {}, current: null, entryCount: 0, settings: {}, profile: {} };
+const S = { books: [], entries: {}, counts: {}, current: null, entryCount: 0, settings: {}, profile: {}, libQ: '' };
 const J = { tab: 'log', q: '', tag: 'all', curTag: 'note', photo: null };
-const DEF_SETTINGS = { theme: 'classic', sound: true, volume: .6, dust: true, sort: 'old', location: null, weather: null, introDone: false, lastBackup: null };
+const DEF_SETTINGS = { theme: 'classic', sound: true, volume: .6, dust: true, sort: 'old', location: null, weather: null, introDone: false, lastBackup: null, shelfSort: 'custom', shelfStyle: 'cozy', curtains: 'open' };
 const DEF_PROFILE = { xp: 0, achievements: {}, deaths: 0 };
 const saveSettings = () => localStorage.setItem('ssc.settings', JSON.stringify(S.settings));
 const saveProfile = () => localStorage.setItem('ssc.profile', JSON.stringify(S.profile));
@@ -125,6 +135,7 @@ function loadLocal() {
   try { S.settings = Object.assign({}, DEF_SETTINGS, JSON.parse(localStorage.getItem('ssc.settings') || '{}')); } catch { S.settings = { ...DEF_SETTINGS }; }
   try { S.profile = Object.assign({}, DEF_PROFILE, JSON.parse(localStorage.getItem('ssc.profile') || '{}')); } catch { S.profile = { ...DEF_PROFILE }; }
   S.profile.achievements = S.profile.achievements || {};
+  if (!THEMES.some(t => t.id === S.settings.theme)) S.settings.theme = 'classic';
 }
 
 /* =============================================================
@@ -156,7 +167,6 @@ const DB = {
   put: (s, v) => DB.req(s, o => o.put(v), 'readwrite'),
   del: (s, id) => DB.req(s, o => o.delete(id), 'readwrite'),
   clear: (s) => DB.req(s, o => o.clear(), 'readwrite'),
-  count: (s) => DB.req(s, o => o.count()),
   byBook: (id) => DB.req('entries', o => o.index('bookId').getAll(id)),
   putMany(s, arr) {
     return new Promise((res, rej) => {
@@ -165,6 +175,10 @@ const DB = {
     });
   }
 };
+async function recount() {
+  S.counts = {}; const all = await DB.all('entries');
+  all.forEach(e => { S.counts[e.bookId] = (S.counts[e.bookId] || 0) + 1; }); S.entryCount = all.length;
+}
 
 /* =============================================================
    Sound effects (synthesized — no audio files needed)
@@ -177,7 +191,6 @@ const SFX = {
     this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.gain.value = S.settings.volume; this.master.connect(this.ctx.destination);
     const len = this.ctx.sampleRate; const b = this.ctx.createBuffer(1, len, this.ctx.sampleRate); const d = b.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; this.noiseBuf = b;
-    // iOS unlock blip
     const o = this.ctx.createOscillator(), g = this.ctx.createGain(); g.gain.value = 0; o.connect(g); g.connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime + .02);
   },
   setVol(v) { if (this.master) this.master.gain.value = v; },
@@ -220,6 +233,8 @@ const SFX = {
       case 'glug': [0, .12, .24].forEach((a, i) => T.tone(300 - i * 40, .1, { at: a, type: 'sine', vol: .25, slide: 500 })); break;
       case 'thunder': T.noise(1.4, { freq: 180, sweep: 50, vol: .18, type: 'lowpass' }); break;
       case 'whoosh': T.noise(.4, { freq: 300, sweep: 3000, vol: .12, q: .6 }); break;
+      case 'curtain': T.noise(.9, { freq: 700, sweep: 1900, vol: .13, q: .4 }); for (let i = 0; i < 6; i++) T.tone(2300 + Math.random() * 500, .05, { at: .05 + i * .08, type: 'triangle', vol: .035 }); break;
+      case 'shuffle': for (let i = 0; i < 5; i++) T.noise(.12, { at: i * .09, freq: 600 + i * 150, sweep: 250, vol: .16, type: 'lowpass' }); T.tone(160, .2, { at: .5, type: 'sine', vol: .25, slide: 80 }); break;
     }
   }
 };
@@ -323,6 +338,11 @@ function coverHTML(b, style = '') {
     <span class="cemb">${icon(b.emblem)}</span><span class="ctitle">${esc(b.title || 'Untitled Quest')}</span><span class="cplat">${esc(b.platform || '')}</span></div>`;
 }
 const miniSpine = (type) => `<span class="book mini t-${type}" style="--c:#7a1f2b;--trim:#e8c15a;--h:46px;--w:18px;background:${SPINE_SHADE}, #7a1f2b"><span class="band b1"></span><span class="band b2"></span></span>`;
+// A book lying on its side: outer box is h×w, inner spine rotated -90°
+function flatHTML(b, cls = '', outer = '', st = '') {
+  const { h, w } = dimsOf(b);
+  return `<div class="flat ${outer}" style="${st}width:${h}px;height:${w}px;left:${(hashN(b.id) % 9) - 4}px"><div class="rot" style="width:${w}px;height:${h}px;left:${(h - w) / 2}px;top:${(w - h) / 2}px">${spineHTML(b, cls)}</div></div>`;
+}
 
 const DECOS = {
   potion: `<svg viewBox="0 0 40 56" class="deco" data-deco="potion"><rect x="16" y="1" width="8" height="7" rx="1.5" fill="#8b5a2b"/><path d="M15 8h10v10l9 13a12 12 0 0 1-10 21h-8A12 12 0 0 1 6 31l9-13z" fill="rgba(210,235,255,.22)" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/><g class="liq"><path d="M8 33h24a11 11 0 0 1-8 17h-8A11 11 0 0 1 8 33z" fill="var(--accent2)" opacity=".9"/></g><circle cx="15" cy="40" r="2" fill="#fff" opacity=".7"/><circle cx="22" cy="44" r="1.3" fill="#fff" opacity=".5"/><path d="M13 12v10" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/></svg>`,
@@ -334,40 +354,95 @@ const DECOS = {
 };
 
 /* =============================================================
-   Library screen
+   Library screen — sorting, poses, search
    ============================================================= */
+const LEAN_DEG = 11, LEAN_SIN = Math.sin(LEAN_DEG * Math.PI / 180);
+function hueOf(hex) {
+  const n = parseInt(String(hex).slice(1), 16) || 0; const r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < .08) return 400 + (mx + mn) * 50;
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360;
+}
+function sortedBooks() {
+  const t = (a, b) => (a.title || '').localeCompare(b.title || '', undefined, { numeric: true, sensitivity: 'base' });
+  const by = {
+    custom: (a, b) => (a.order ?? 0) - (b.order ?? 0), recent: (a, b) => (b.updated || 0) - (a.updated || 0), title: t,
+    newest: (a, b) => (b.created || 0) - (a.created || 0), platform: (a, b) => (a.platform || '').localeCompare(b.platform || '') || t(a, b),
+    color: (a, b) => hueOf(a.color) - hueOf(b.color), entries: (a, b) => (S.counts[b.id] || 0) - (S.counts[a.id] || 0) || t(a, b),
+    type: (a, b) => BOOK_TYPES.findIndex(x => x.id === a.type) - BOOK_TYPES.findIndex(x => x.id === b.type) || t(a, b)
+  };
+  return [...S.books].sort(by[S.settings.shelfSort] || by.custom);
+}
+function poseOf(b) {
+  if (b.pose && b.pose !== 'auto') return b.pose;
+  const st = S.settings.shelfStyle; if (st === 'tidy') return 'upright';
+  const h = hashN(b.id + 'pose') % 100, f = st === 'chaotic' ? 32 : 15, l = st === 'chaotic' ? 30 : 17;
+  return h < f ? 'flat' : h < f + l ? 'lean' : 'upright';
+}
 function libStatsText() {
   const n = S.books.length; return n ? `${n} journal${n === 1 ? '' : 's'} · ${S.entryCount} entr${S.entryCount === 1 ? 'y' : 'ies'}` : 'Your quest library awaits';
 }
 function renderLibrary(drop = false, freshId = null) {
   const wrap = $('#shelves'); const W = (wrap.clientWidth || 340) - 22;
-  const books = [...S.books].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const items = books.map(b => ({ b, w: dimsOf(b).w + 3 })); items.push({ ghost: true, w: 47 });
+  const q = (S.libQ || '').trim().toLowerCase(), searching = !!q;
+  let books = sortedBooks(); if (searching) books = books.filter(b => `${b.title} ${b.platform}`.toLowerCase().includes(q));
+  // Group books into placement units: standing, leaning, or piles of flat books
+  const units = []; let pile = null;
+  for (const b of books) {
+    const pose = poseOf(b), { h, w } = dimsOf(b);
+    if (pose === 'flat') {
+      if (pile && pile.books.length < 3 && pile.th + w <= 136) { pile.books.push(b); pile.th += w; pile.w = Math.max(pile.w, h + 13); }
+      else { pile = { kind: 'pile', books: [b], th: w, w: h + 13 }; units.push(pile); }
+      continue;
+    }
+    pile = null;
+    if (pose === 'lean') { const m = Math.round(h * LEAN_SIN) - 2; units.push({ kind: 'lean', b, m, w: w + 3 + m }); }
+    else units.push({ kind: 'up', b, w: w + 3 });
+  }
+  if (!searching) units.push({ kind: 'ghost', w: 47 });
   const shelves = []; let cur = [], acc = 0;
-  for (const it of items) { if (acc + it.w > W && cur.length) { shelves.push({ items: cur, used: acc }); cur = []; acc = 0; } cur.push(it); acc += it.w; }
-  shelves.push({ items: cur, used: acc });
+  for (const u of units) { if (acc + u.w > W && cur.length) { shelves.push({ items: cur, used: acc }); cur = []; acc = 0; } cur.push(u); acc += u.w; }
+  if (cur.length || !shelves.length) shelves.push({ items: cur, used: acc });
   const minShelves = Math.max(3, Math.ceil((wrap.clientHeight || 400) / 160));
   while (shelves.length < minShelves) shelves.push({ items: [], used: 0 });
   const decoKeys = Object.keys(DECOS); let di = 0, bi = 0;
+  const cls = b => `${b.id === freshId ? 'fresh ' : ''}${searching ? 'match' : ''}`;
+  const delay = () => `--d:${(bi++ * .045).toFixed(3)}s`;
   const html = shelves.map((sh, si) => {
-    let inner = sh.items.map(it => {
-      if (it.ghost) return `<button class="ghost" id="ghostBook" aria-label="New journal">${ui('plus')}</button>`;
-      const cls = (drop ? 'drop ' : '') + (it.b.id === freshId ? 'fresh' : '');
-      return spineHTML(it.b, cls, `--d:${(bi++ * .045).toFixed(3)}s`);
+    let inner = sh.items.map((u, i, arr) => {
+      if (u.kind === 'ghost') return `<button class="ghost" id="ghostBook" aria-label="New journal">${ui('plus')}</button>`;
+      if (u.kind === 'up') return spineHTML(u.b, (drop ? 'drop ' : '') + cls(u.b), delay());
+      if (u.kind === 'lean') {
+        const n = arr[i + 1]; const right = !!n && (n.kind === 'up' || n.kind === 'lean');
+        return `<div class="slot ${right ? 'lean-r' : 'lean-l'}" style="--lean:${LEAN_DEG}deg;${right ? 'margin-right' : 'margin-left'}:${u.m}px">${spineHTML(u.b, (drop ? 'drop ' : '') + cls(u.b), delay())}</div>`;
+      }
+      return `<div class="pile" style="width:${u.w - 3}px">${u.books.map(b => flatHTML(b, cls(b), drop ? 'drop' : '', delay() + ';')).join('')}</div>`;
     }).join('');
     const room = W - sh.used;
-    if (room > 54) { const k = decoKeys[(si * 2 + di++) % decoKeys.length]; inner += DECOS[k].replace('class="deco"', `class="deco${sh.items.length ? '' : (si % 2 ? '' : ' left')}"`); }
-    if (!sh.items.length && room > 140 && si % 2) inner = DECOS[decoKeys[(si + 3) % decoKeys.length]].replace('class="deco"', 'class="deco left"') + inner;
+    if (room > 54 && !searching) { const k = decoKeys[(si * 2 + di++) % decoKeys.length]; inner += DECOS[k].replace('class="deco"', `class="deco${sh.items.length ? '' : (si % 2 ? '' : ' left')}"`); }
+    if (!sh.items.length && room > 140 && si % 2 && !searching) inner = DECOS[decoKeys[(si + 3) % decoKeys.length]].replace('class="deco"', 'class="deco left"') + inner;
     return `<div class="shelf">${inner}</div>`;
   }).join('');
-  wrap.innerHTML = html + (S.books.length ? '' : `<div class="hint" style="top:${56}px;bottom:auto">◀ Tap to start your first journal</div>`);
-  $('#libStats').textContent = libStatsText();
+  let extra = '';
+  if (!S.books.length) extra = `<div class="hint" style="top:56px">◀ Tap to start your first journal</div>`;
+  else if (searching && !books.length) extra = `<div class="noresults"><b>No tomes found</b>Nothing on the shelves matches “${esc(S.libQ)}”.</div>`;
+  wrap.innerHTML = html + extra;
+  $('#libStats').textContent = searching ? `${books.length} of ${S.books.length} journals match` : libStatsText();
   renderLibBar();
 }
 function renderLibBar() {
   const last = [...S.books].sort((a, b) => (b.updated || 0) - (a.updated || 0))[0];
   $('#libbar').innerHTML = (last ? `<button class="cta alt" id="btnContinue">${ui('play')}<span class="t">Continue: ${esc(last.title)}</span></button>` : '') +
     `<button class="cta" id="btnNew" ${last ? 'style="flex:0 0 auto;padding:14px 16px"' : ''}>${ui('plus')}<span class="t">${last ? 'New' : 'Begin a New Quest'}</span></button>`;
+}
+function renderLibTools() {
+  const lbl = t => `<span class="chiplabel">${t}</span>`;
+  $('#sortRow').innerHTML = lbl('Sort') + SORTS.map(([k, n]) => `<button class="tagchip ${S.settings.shelfSort === k ? 'on' : ''}" data-sort="${k}" style="--tc:rgba(var(--glow),.5)">${n}</button>`).join('');
+  $('#arrRow').innerHTML = lbl('Arrange') + ARRANGE.map(([k, n]) => `<button class="tagchip ${S.settings.shelfStyle === k ? 'on' : ''}" data-arr="${k}" style="--tc:rgba(var(--glow),.5)">${n}</button>`).join('');
+}
+function toggleLibTools(force) {
+  const t = $('#libtools'); const show = force ?? t.hidden; t.hidden = !show; $('#btnLibSearch').classList.toggle('on', show);
+  if (show) { renderLibTools(); SFX.play('whoosh'); setTimeout(() => $('#libSearch').focus({ preventScroll: true }), 60); }
+  else { $('#libSearch').blur(); if (S.libQ) { S.libQ = ''; $('#libSearch').value = ''; renderLibrary(false); } SFX.play('tap'); }
 }
 function idleWiggle() {
   if (!$('#library').classList.contains('active') || document.hidden) return;
@@ -381,7 +456,8 @@ function showScreen(id) { $$('.screen').forEach(s => s.classList.toggle('active'
 async function openBook(id, el) {
   if (busy) return; const b = S.books.find(x => x.id === id); if (!b) return; busy = true;
   try {
-    SFX.play('pull'); if (el) { el.classList.add('pulled'); }
+    SFX.play('pull'); if (el) el.classList.add('pulled');
+    $('#libSearch').blur();
     await Promise.all([loadEntries(id), sleep(el ? 300 : 0)]);
     S.current = b; Object.assign(J, { tab: 'log', q: '', tag: 'all', photo: null }); $('#searchbar').hidden = true; $('#searchIn').value = '';
     renderJournal();
@@ -446,7 +522,7 @@ function filtered() {
   if (S.settings.sort === 'new') arr.reverse();
   return arr;
 }
-const rotFor = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0; return ((h % 5) - 2) * .7; };
+const rotFor = id => ((hashN(id) % 5) - 2) * .7;
 function entryHTML(e, cls = '') {
   const t = TAGS.find(x => x.id === e.tag) || TAGS[0];
   return `<article class="entry ${cls}" data-id="${e.id}">
@@ -527,7 +603,7 @@ async function submitEntry() {
   let photoId = null;
   if (J.photo) { photoId = uid(); await DB.put('photos', { id: photoId, bookId: b.id, data: J.photo }); photoCache.set(photoId, J.photo); }
   const e = { id: uid(), bookId: b.id, text, tag: J.curTag, photoId, ts: Date.now() };
-  await DB.put('entries', e); (S.entries[b.id] = S.entries[b.id] || []).push(e); S.entryCount++;
+  await DB.put('entries', e); (S.entries[b.id] = S.entries[b.id] || []).push(e); S.entryCount++; S.counts[b.id] = (S.counts[b.id] || 0) + 1;
   b.updated = e.ts; await DB.put('books', b);
   ta.value = ''; autoGrow(); J.photo = null; renderPhotoPreview();
   if (J.q || J.tag !== 'all') { J.q = ''; J.tag = 'all'; $('#searchIn').value = ''; renderFilterTags(); }
@@ -537,12 +613,11 @@ async function submitEntry() {
   const el = $(`.entry[data-id="${e.id}"]`);
   if (el) { const q = document.createElement('span'); q.className = 'quillfx'; q.innerHTML = icon('quill'); el.appendChild(q); setTimeout(() => q.remove(), 1200); centerIn($('#paneLog'), el); }
   addXP(10 + (photoId ? 15 : 0), sb);
-  // achievements
   const all = S.entries[b.id], n = S.entryCount;
   unlock('first_entry'); if (photoId) unlock('photo'); if (n >= 10) unlock('ten'); if (n >= 50) unlock('fifty'); if (n >= 100) unlock('hundred');
   if (e.tag === 'boss') unlock('boss');
   if (e.tag === 'death') { S.profile.deaths = (S.profile.deaths || 0) + 1; saveProfile(); if (S.profile.deaths >= 5) unlock('death5'); }
-  const h = new Date(e.ts).getHours(); if (h < 4) unlock('night');
+  if (new Date(e.ts).getHours() < 4) unlock('night');
   if (all.length % 25 === 0) toast(`<span class="ti">${icon('book')}</span><span><small>Milestone</small><b>${all.length} entries in ${esc(b.title)}!</b></span>`, { sound: 'chime' });
 }
 async function deleteEntry(id) {
@@ -551,7 +626,7 @@ async function deleteEntry(id) {
   const el = $(`.entry[data-id="${id}"]`); SFX.play('delete');
   if (el) { const p = ptOf(el); FX.burst(p.x, p.y, { n: 30, colors: ['#888', '#bbb', '#555'], g: .05 }); el.classList.add('poof'); await sleep(420); }
   await DB.del('entries', id); if (e.photoId) { await DB.del('photos', e.photoId); photoCache.delete(e.photoId); }
-  arr.splice(arr.indexOf(e), 1); S.entryCount = Math.max(0, S.entryCount - 1); renderJournal();
+  arr.splice(arr.indexOf(e), 1); S.entryCount = Math.max(0, S.entryCount - 1); S.counts[b.id] = Math.max(0, (S.counts[b.id] || 1) - 1); renderJournal();
 }
 function editEntry(id) {
   const e = (S.entries[S.current.id] || []).find(x => x.id === id); if (!e) return; let tag = e.tag;
@@ -566,7 +641,7 @@ function editEntry(id) {
     if (a && a.dataset.m === 'ok') {
       const txt = $('#edText').value.trim(); if (!txt && !e.photoId) { SFX.play('error'); return; }
       Object.assign(e, { text: txt, tag, edited: Date.now() }); await DB.put('entries', e); SFX.play('scribble'); m.hidden = true; m.innerHTML = ''; renderEntries();
-      const el = $(`.entry[data-id="${e.id}"]`); if (el) { el.classList.add('inked'); }
+      const el = $(`.entry[data-id="${e.id}"]`); if (el) el.classList.add('inked');
       return;
     }
     SFX.play('tap'); m.hidden = true; m.innerHTML = '';
@@ -606,20 +681,20 @@ function confirmBox({ icon: ic = 'skull', title, msg, ok = 'OK', cancel = 'Cance
   });
 }
 
-/* ---------- book editor ---------- */
+/* ---------- book editor (preview stays pinned while options scroll) ---------- */
 const E = { draft: null, isNew: true };
-function randomBook(keepTitle) {
+function randomBook() {
   const d = { ...E.draft };
   Object.assign(d, { type: pick(BOOK_TYPES).id, color: pick(COLORS), trim: pick(TRIMS).id, pattern: pick(PATTERNS).id, emblem: pick(Object.keys(EMB)), font: pick(FONTS).id, ink: pick(INKS).id, paper: pick(PAPERS).id, height: pick(['s', 'm', 't']), thick: pick(['s', 'm', 'l']) });
-  if (!keepTitle) d.title = ''; return d;
+  return d;
 }
 const optBtn = (k, v, label, on, extra = '') => `<button class="opt ${on ? 'on' : ''}" data-k="${k}" data-v="${esc(v)}" ${extra}>${label}</button>`;
 function openEditor(book) {
   E.isNew = !book;
-  E.draft = book ? { ...book } : { ...DEFAULT_BOOK, color: pick(COLORS), emblem: pick(['sword', 'shield', 'controller', 'potion', 'star', 'gem', 'crown', 'mushroom']) };
+  E.draft = book ? { pose: 'auto', ...book } : { ...DEFAULT_BOOK, color: pick(COLORS), emblem: pick(['sword', 'shield', 'controller', 'potion', 'star', 'gem', 'crown', 'mushroom']) };
   const d = E.draft;
   sheetOpen(`<h3 class="sh-title">${E.isNew ? 'Begin a New Quest' : 'Customize Journal'}</h3>
-    <div class="preview-stage" id="pvStage"></div>
+    <div class="pv-sticky"><div class="preview-stage" id="pvStage"></div></div>
     <div class="group"><div class="glabel">Game Title</div><input id="edTitle" class="txt" maxlength="42" placeholder="e.g. The Legend of Something" value="${esc(d.title)}" autocomplete="off"></div>
     <div class="group"><div class="glabel">Platform</div><div class="opts">${PLATFORMS.map(p => optBtn('platform', p, p, d.platform === p)).join('')}</div></div>
     <div class="group"><div class="glabel">Book Type</div><div class="opts">${BOOK_TYPES.map(t => optBtn('type', t.id, miniSpine(t.id) + t.name, d.type === t.id)).join('')}</div></div>
@@ -632,13 +707,20 @@ function openEditor(book) {
     <div class="group"><div class="glabel">Paper</div><div class="opts">${PAPERS.map(p => optBtn('paper', p.id, `<span class="swatch" style="width:18px;height:18px;border-radius:4px;background:${p.sw}"></span>${p.name}`, d.paper === p.id)).join('')}</div></div>
     <div class="group"><div class="glabel">Spine Height</div><div class="opts">${[['s', 'Short'], ['m', 'Medium'], ['t', 'Tall']].map(([v, n]) => optBtn('height', v, n, d.height === v)).join('')}</div></div>
     <div class="group"><div class="glabel">Thickness</div><div class="opts">${[['s', 'Slim'], ['m', 'Regular'], ['l', 'Chunky']].map(([v, n]) => optBtn('thick', v, n, d.thick === v)).join('')}</div></div>
+    <div class="group"><div class="glabel">Shelf Pose</div><div class="opts">${POSES.map(([v, n]) => optBtn('pose', v, n, d.pose === v)).join('')}</div><p class="fine">“Auto” follows the shelf arrangement style (Tidy / Cozy / Chaotic) in the shelf search menu.</p></div>
     <div class="btnrow"><button class="btn" data-act="random">${icon('dice')} Randomize</button><button class="btn primary" data-act="savebook">${icon('quill')} ${E.isNew ? 'Add to Shelf' : 'Save Changes'}</button></div>
     ${E.isNew ? '' : `<button class="btn danger wide" data-act="delbook">${ui('trash')} Banish this Journal</button>`}`, 'editor');
   renderPreview();
 }
+function poseDemoHTML(d) {
+  const pose = !d.pose || d.pose === 'auto' ? 'upright' : d.pose; const { h } = dimsOf(d);
+  if (pose === 'flat') return `<div class="pile">${flatHTML(d)}</div>`;
+  if (pose === 'lean') return `<div class="slot lean-r" style="--lean:${LEAN_DEG}deg;margin-right:${Math.round(h * LEAN_SIN) - 22}px">${spineHTML(d)}</div>`;
+  return spineHTML(d);
+}
 function renderPreview(anim = 'pop') {
-  const st = $('#pvStage'); if (!st) return; const d = { ...E.draft, id: 'pv', title: E.draft.title || 'Untitled Quest' };
-  st.innerHTML = spineHTML(d) + coverHTML(d); st.classList.remove('pop', 'spin'); void st.offsetWidth; if (anim) st.classList.add(anim);
+  const st = $('#pvStage'); if (!st) return; const d = { ...E.draft, id: E.draft.id || 'preview', title: E.draft.title || 'Untitled Quest' };
+  st.innerHTML = poseDemoHTML(d) + coverHTML(d); st.classList.remove('pop', 'spin'); void st.offsetWidth; if (anim) st.classList.add(anim);
 }
 function syncEditorUI() {
   const d = E.draft;
@@ -647,11 +729,17 @@ function syncEditorUI() {
 }
 async function saveBook() {
   const d = E.draft; d.title = ($('#edTitle').value || '').trim();
-  if (!d.title) { SFX.play('error'); const t = $('#edTitle'); t.focus(); t.style.animation = 'shake .4s'; setTimeout(() => t.style.animation = '', 450); info('Give your quest a name first!'); return; }
+  if (!d.title) {
+    SFX.play('error'); const t = $('#edTitle'); const body = $('#sheetBody');
+    body.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => t.focus({ preventScroll: true }), 300);
+    t.style.animation = 'shake .4s'; setTimeout(() => t.style.animation = '', 450); info('Give your quest a name first!'); return;
+  }
   if (E.isNew) {
     d.id = uid(); d.created = Date.now(); d.updated = Date.now(); d.order = S.books.reduce((m, b) => Math.max(m, b.order ?? 0), 0) + 1;
-    await DB.put('books', d); S.books.push(d); S.entries[d.id] = [];
-    sheetClose(); SFX.play('levelup'); renderLibrary(false, d.id);
+    await DB.put('books', d); S.books.push(d); S.entries[d.id] = []; S.counts[d.id] = 0;
+    sheetClose(); SFX.play('levelup');
+    if (S.libQ) { S.libQ = ''; $('#libSearch').value = ''; }
+    renderLibrary(false, d.id);
     const el = $(`#shelves .book[data-id="${d.id}"]`); if (el) { centerIn($('#shelves'), el); setTimeout(() => { const p = ptOf(el); FX.burst(p.x, p.y, { n: 50, shape: 'spark', max: 6 }); }, 250); }
     addXP(25, el || undefined); unlock('first_book'); if (S.books.length >= 5) unlock('five_books');
     toast(`<span class="ti">${icon(d.emblem)}</span><span><small>New Quest Added</small><b>${esc(d.title)}</b></span>`, { ms: 2200 });
@@ -667,7 +755,7 @@ async function deleteBook() {
   const ok = await confirmBox({ icon: 'skull', title: 'Banish this journal?', msg: `<b>${esc(d.title)}</b> and its ${n} entr${n === 1 ? 'y' : 'ies'} will be permanently erased. Consider exporting a backup first.`, ok: 'Banish', danger: true });
   if (!ok) return;
   const ents = await DB.byBook(d.id); for (const e of ents) { await DB.del('entries', e.id); if (e.photoId) await DB.del('photos', e.photoId); }
-  await DB.del('books', d.id); S.books = S.books.filter(b => b.id !== d.id); delete S.entries[d.id]; S.entryCount = Math.max(0, S.entryCount - ents.length);
+  await DB.del('books', d.id); S.books = S.books.filter(b => b.id !== d.id); delete S.entries[d.id]; delete S.counts[d.id]; S.entryCount = Math.max(0, S.entryCount - ents.length);
   sheetClose(); SFX.play('delete'); if (S.current && S.current.id === d.id) { S.current = null; showScreen('library'); }
   renderLibrary(false); info(`${esc(d.title)} was banished.`);
 }
@@ -682,9 +770,10 @@ function openSettings(scrollTo) {
     <div class="group"><div class="glabel">Sound &amp; Effects</div>
       <div class="row"><span>Sound effects<small>Page flips, quills, chiptune chimes</small></span><button class="toggle ${S.settings.sound ? 'on' : ''}" data-act="sound"><i></i></button></div>
       <div class="row"><span>Volume<input type="range" id="volIn" min="0" max="1" step="0.05" value="${S.settings.volume}"></span></div>
-      <div class="row"><span>Floating dust &amp; embers<small>Ambient particles in the library</small></span><button class="toggle ${S.settings.dust ? 'on' : ''}" data-act="dust"><i></i></button></div>
+      <div class="row"><span>Floating particles<small>Dust, petals, embers, bubbles — depends on theme</small></span><button class="toggle ${S.settings.dust ? 'on' : ''}" data-act="dust"><i></i></button></div>
     </div>
     <div class="group" id="grpWin"><div class="glabel">Window to the Outside</div>
+      <div class="row"><span>Curtains<small>Tip: tap the window itself to open or close them</small></span><button class="toggle ${S.settings.curtains !== 'closed' ? 'on' : ''}" data-act="curtains"><i></i></button></div>
       <div class="row"><span>${loc ? 'Location saved' : 'Location not set'}<small>${loc ? `Checked ${ago(loc.ts)} · re-checks every 30 days` : 'Showing your local time of day only'}${w ? ` · Sky updated ${ago(w.ts)}` : ''}</small></span></div>
       <div class="btnrow"><button class="btn" data-act="loc">${ui('pin')} Update Location</button><button class="btn" data-act="sky">${ui('refresh')} Refresh Sky</button></div>
       <p class="fine">Sky conditions come from the free Open-Meteo public weather service. Time of day follows your real sunrise &amp; sunset. Your coordinates stay on this device and are only sent to fetch the weather.</p>
@@ -696,7 +785,7 @@ function openSettings(scrollTo) {
     <div class="group" id="grpAch"><div class="glabel">Achievements · ${got}/${total}</div><div class="achlist">${Object.entries(ACH).map(([k, v]) => `<div class="ach ${p.achievements[k] ? 'got' : ''}"><span class="ai">${icon(p.achievements[k] ? v.i : 'key')}</span><div><b>${p.achievements[k] ? esc(v.n) : '???'}</b><small>${esc(v.d)}</small></div><em>+${v.xp}</em></div>`).join('')}</div></div>
     <div class="group"><div class="glabel">Danger Zone</div><button class="btn danger wide" style="margin-top:0" data-act="wipe">${ui('trash')} Erase Entire Library</button></div>
     <p class="fine" style="text-align:center;margin-top:20px">Sidequest Scribe v${VERSION} · Works offline · Made for adventurers</p>`, 'settings');
-  if (scrollTo) setTimeout(() => { const g = $(scrollTo); if (g) { const b = $('#sheetBody'); b.scrollTo({ top: b.scrollTop + g.getBoundingClientRect().top - b.getBoundingClientRect().top - 10, behavior: 'smooth' }); } }, 350);
+  if (scrollTo) setTimeout(() => { const g = $(scrollTo); if (g) { const bd = $('#sheetBody'); bd.scrollTo({ top: bd.scrollTop + g.getBoundingClientRect().top - bd.getBoundingClientRect().top - 10, behavior: 'smooth' }); } }, 350);
 }
 async function applyTheme(id, from) {
   const t = THEMES.find(x => x.id === id) || THEMES[0];
@@ -706,19 +795,30 @@ async function applyTheme(id, from) {
     w.style.clipPath = `circle(150% at ${p.x}px ${p.y}px)`; await sleep(460);
     document.body.dataset.theme = t.id; w.style.opacity = '0'; setTimeout(() => w.remove(), 500);
   } else document.body.dataset.theme = t.id;
-  S.settings.theme = t.id; saveSettings(); $('meta[name=theme-color]').setAttribute('content', t.tc); Dust.recolor();
+  S.settings.theme = t.id; saveSettings(); $('meta[name=theme-color]').setAttribute('content', t.b); Dust.recolor();
+  requestAnimationFrame(() => Win.init()); // window shape changes per theme
   if (from) { unlock('decor'); $$('.themecard').forEach(c => c.classList.toggle('on', c.dataset.themeId === t.id)); }
+}
+
+/* ---------- curtains ---------- */
+function setCurtains(open, anim) {
+  $('#windowWrap').classList.toggle('closed', !open); document.body.dataset.curtains = open ? 'open' : 'closed';
+  if (anim) $$('.drape').forEach(d => { d.classList.remove('sway'); void d.offsetWidth; d.classList.add('sway'); });
+}
+function toggleCurtains() {
+  const open = S.settings.curtains === 'closed'; S.settings.curtains = open ? 'open' : 'closed'; saveSettings();
+  setCurtains(open, true); SFX.play('curtain');
+  if (open) setTimeout(() => windowTip(true), 800); else { unlock('curtains'); showTip('Curtains drawn · cozy mode'); }
 }
 
 /* ---------- backup ---------- */
 async function exportLibrary() {
   info('Packing your save file…', 1200);
   const [books, entries, photos] = await Promise.all([DB.all('books'), DB.all('entries'), DB.all('photos')]);
-  const data = { app: 'Sidequest Scribe', format: 1, version: VERSION, exportedAt: new Date().toISOString(), theme: S.settings.theme, profile: S.profile, books, entries, photos };
+  const data = { app: 'Sidequest Scribe', format: 1, version: VERSION, exportedAt: new Date().toISOString(), theme: S.settings.theme, shelfSort: S.settings.shelfSort, shelfStyle: S.settings.shelfStyle, profile: S.profile, books, entries, photos };
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const d = new Date(); const name = `SidequestScribe-Backup-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`;
   const file = new File([blob], name, { type: 'application/json' }); const mb = (blob.size / 1048576).toFixed(2);
-  // iOS needs a fresh tap to open the share sheet, so we ask for one.
   const go = await confirmBox({ icon: 'shield', title: 'Save file ready!', msg: `${books.length} journals · ${entries.length} entries · ${photos.length} screenshots (${mb} MB).<br>Tap <b>Save Backup</b> and choose “Save to Files”.`, ok: 'Save Backup', cancel: 'Cancel' });
   if (!go) return;
   let done = false;
@@ -734,15 +834,16 @@ async function importLibrary(file) {
   await Promise.all(['books', 'entries', 'photos'].map(s => DB.clear(s)));
   await DB.putMany('books', data.books); await DB.putMany('entries', data.entries); await DB.putMany('photos', data.photos || []);
   if (data.profile) { S.profile = Object.assign({}, DEF_PROFILE, data.profile); saveProfile(); }
+  if (data.shelfSort) S.settings.shelfSort = data.shelfSort; if (data.shelfStyle) S.settings.shelfStyle = data.shelfStyle; saveSettings();
   if (data.theme) applyTheme(data.theme);
-  photoCache.clear(); S.entries = {}; S.books = await DB.all('books'); S.entryCount = await DB.count('entries');
+  photoCache.clear(); S.entries = {}; S.books = await DB.all('books'); await recount();
   sheetClose(); showScreen('library'); renderLibrary(true); updatePlayer(); SFX.play('levelup'); info('Library restored! Welcome back, adventurer.', 2600);
 }
 async function wipeAll() {
   const ok = await confirmBox({ icon: 'skull', title: 'Erase EVERYTHING?', msg: 'All journals, entries, screenshots, XP and achievements will be deleted. This is a permanent Game Over.', ok: 'Erase All', danger: true });
   if (!ok) return; const ok2 = await confirmBox({ icon: 'ghost', title: 'Are you really sure?', msg: 'Last chance to export a backup first!', ok: 'Yes, erase', danger: true }); if (!ok2) return;
   await Promise.all(['books', 'entries', 'photos'].map(s => DB.clear(s)));
-  S.books = []; S.entries = {}; S.entryCount = 0; photoCache.clear(); S.profile = { ...DEF_PROFILE, achievements: {} }; saveProfile();
+  S.books = []; S.entries = {}; S.counts = {}; S.entryCount = 0; photoCache.clear(); S.profile = { ...DEF_PROFILE, achievements: {} }; saveProfile();
   sheetClose(); showScreen('library'); renderLibrary(true); updatePlayer(); SFX.play('delete'); info('The library is empty. A new adventure begins.');
 }
 
@@ -797,10 +898,10 @@ const SKIES = {
   day: [[0, '#2f84e0'], [.7, '#8ccdf8'], [1, '#c4e8ff']], dusk: [[0, '#231f5e'], [.5, '#b44f7a'], [1, '#ff9a5a']]
 };
 const Win = {
-  cv: null, ctx: null, w: 86, h: 114, t: 0, clouds: [], drops: [], flakes: [], stars: [], flash: 0, bolt: null,
+  cv: null, ctx: null, w: 86, h: 102, t: 0, clouds: [], drops: [], flakes: [], stars: [], flash: 0, bolt: null,
   init() {
     this.cv = $('#skycv'); this.ctx = this.cv.getContext('2d'); const dpr = Math.min(2, devicePixelRatio || 1);
-    this.w = this.cv.clientWidth || 86; this.h = this.cv.clientHeight || 114; this.cv.width = this.w * dpr; this.cv.height = this.h * dpr; this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.w = this.cv.clientWidth || 86; this.h = this.cv.clientHeight || 102; this.cv.width = this.w * dpr; this.cv.height = this.h * dpr; this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.stars = Array.from({ length: 46 }, () => ({ x: Math.random() * this.w, y: Math.random() * this.h * .7, r: Math.random() * 1.2 + .4, p: Math.random() * 6 }));
     this.setup();
   },
@@ -820,7 +921,6 @@ const Win = {
     const c = this.ctx, w = this.w, h = this.h;
     const back = { night: '#0e1428', day: '#3b6d4a', dawn: '#4a3a58', dusk: '#3b2a48' }[P], front = { night: '#070a16', day: '#244a30', dawn: '#2a2036', dusk: '#22162e' }[P];
     c.fillStyle = back; c.beginPath(); c.moveTo(0, h * .78); c.quadraticCurveTo(w * .3, h * .66, w * .55, h * .76); c.quadraticCurveTo(w * .8, h * .84, w, h * .72); c.lineTo(w, h); c.lineTo(0, h); c.fill();
-    // castle tower
     c.fillStyle = front; const tx = w * .18, ty = h * .58; c.fillRect(tx, ty, 10, h * .3); for (let i = 0; i < 3; i++) c.fillRect(tx - 1 + i * 4.5, ty - 3, 3, 3);
     c.beginPath(); c.moveTo(tx - 2, ty); c.lineTo(tx + 5, ty - 12); c.lineTo(tx + 12, ty); c.fill();
     if (P === 'night' || P === 'dusk') { c.fillStyle = '#ffd36b'; c.shadowColor = '#ffb22e'; c.shadowBlur = 6; c.fillRect(tx + 3.5, ty + 6, 3, 4); c.shadowBlur = 0; }
@@ -849,7 +949,7 @@ const Win = {
     for (const cl of this.clouds) { cl.x += cl.v; if (cl.x > w + 10) cl.x = -36 * cl.s - 10; this.cloud(cl.x, cl.y, cl.s, ccol); }
     if (C === 'storm' && this.flash <= 0 && Math.random() < .005) {
       this.flash = 1; const x0 = rand(w * .2, w * .8); this.bolt = [[x0, 0]]; let x = x0; for (let y = 8; y < h * .8; y += rand(6, 12)) { x += rand(-7, 7); this.bolt.push([x, y]); }
-      if (Math.random() < .35) setTimeout(() => { if ($('#library').classList.contains('active')) SFX.play('thunder'); }, 600);
+      if (Math.random() < .35 && S.settings.curtains !== 'closed') setTimeout(() => { if ($('#library').classList.contains('active')) SFX.play('thunder'); }, 600);
     }
     if (this.flash > 0) { c.fillStyle = `rgba(230,235,255,${this.flash * .55})`; c.fillRect(0, 0, w, h); if (this.flash > .6 && this.bolt) { c.strokeStyle = '#fff'; c.lineWidth = 1.6; c.beginPath(); this.bolt.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); } this.flash -= .05; }
     this.land(P, C);
@@ -858,26 +958,44 @@ const Win = {
     if (C === 'fog') { for (let i = 0; i < 4; i++) { c.fillStyle = 'rgba(225,230,236,.22)'; const y = h * (.35 + i * .17) + Math.sin(this.t * .01 + i) * 3; c.fillRect(-5, y, w + 10, 9 + i * 2); } }
   }
 };
-function windowTip() {
-  const tip = $('#wtip'); const loc = S.settings.location;
-  tip.textContent = loc ? `${COND_NAMES[SKY.cond]} · ${PHASE_NAMES[SKY.phase]}` : `${PHASE_NAMES[SKY.phase]} · tap ⚙ to enable weather`;
-  tip.classList.add('show'); clearTimeout(windowTip.t); windowTip.t = setTimeout(() => tip.classList.remove('show'), 2400);
-  SFX.play(SKY.cond === 'storm' ? 'thunder' : 'chime');
+function showTip(text) {
+  const tip = $('#wtip'); tip.textContent = text; tip.classList.add('show');
+  clearTimeout(showTip.t); showTip.t = setTimeout(() => tip.classList.remove('show'), 2400);
+}
+function windowTip(silent) {
+  const loc = S.settings.location;
+  showTip(loc ? `${COND_NAMES[SKY.cond]} · ${PHASE_NAMES[SKY.phase]}` : `${PHASE_NAMES[SKY.phase]} · enable weather in ⚙`);
+  if (!silent) SFX.play(SKY.cond === 'storm' ? 'thunder' : 'chime');
 }
 
-/* ---------- ambient dust ---------- */
+/* ---------- ambient particles (themed) ---------- */
 const Dust = {
-  cv: null, ctx: null, parts: [], w: 0, h: 0, col: '255,176,80', pixel: false,
-  init() { this.cv = $('#dust'); this.ctx = this.cv.getContext('2d'); this.resize(); this.parts = Array.from({ length: 34 }, () => this.make(true)); this.recolor(); },
+  cv: null, ctx: null, parts: [], w: 0, h: 0, col: '255,176,80', mode: 'mote',
+  init() { this.cv = $('#dust'); this.ctx = this.cv.getContext('2d'); this.resize(); this.recolor(); },
   resize() { const dpr = Math.min(2, devicePixelRatio || 1); this.w = this.cv.clientWidth; this.h = this.cv.clientHeight; this.cv.width = this.w * dpr; this.cv.height = this.h * dpr; this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0); },
-  make(any) { return { x: Math.random() * this.w, y: any ? Math.random() * this.h : this.h + 5, vx: rand(-.12, .12), vy: rand(-.28, -.08), r: rand(.6, 2), p: Math.random() * 6, a: rand(.25, .7) }; },
-  recolor() { this.col = cssVar('--glow') || '255,176,80'; this.pixel = ['pixel', 'neon', 'starship'].includes(document.body.dataset.theme); },
+  falls() { return this.mode === 'petal' || this.mode === 'flake'; },
+  make(any) {
+    const fall = this.falls(), m = this.mode;
+    const vy = fall ? rand(.25, .6) : m === 'ember' ? rand(-1.1, -.4) : m === 'bubble' ? rand(-.6, -.2) : rand(-.28, -.08);
+    return { x: Math.random() * this.w, y: any ? Math.random() * this.h : (fall ? -8 : this.h + 5), vx: rand(-.12, .12), vy, r: m === 'petal' ? rand(2.5, 4.5) : m === 'bubble' ? rand(1.5, 4) : rand(.6, 2), p: Math.random() * 6, a: rand(.3, .75), rot: Math.random() * 6 };
+  },
+  recolor() {
+    this.col = cssVar('--glow') || '255,176,80'; this.mode = DUST_MODE[document.body.dataset.theme] || 'mote';
+    const n = { petal: 26, flake: 40, bubble: 26, ember: 36 }[this.mode] || 34;
+    if (this.cv) this.parts = Array.from({ length: n }, () => this.make(true));
+  },
   frame() {
-    const c = this.ctx; if (!c) return; c.clearRect(0, 0, this.w, this.h); const t = performance.now() / 1000;
+    const c = this.ctx; if (!c) return; c.clearRect(0, 0, this.w, this.h); const t = performance.now() / 1000, m = this.mode;
     for (const p of this.parts) {
-      p.x += p.vx + Math.sin(t * .6 + p.p) * .12; p.y += p.vy; if (p.y < -5 || p.x < -5 || p.x > this.w + 5) Object.assign(p, this.make(false));
-      c.globalAlpha = p.a * (.55 + .45 * Math.sin(t * 2 + p.p)); c.fillStyle = `rgb(${this.col})`;
-      if (this.pixel) c.fillRect(Math.round(p.x), Math.round(p.y), Math.ceil(p.r * 1.3), Math.ceil(p.r * 1.3)); else { c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
+      p.x += p.vx + Math.sin(t * .6 + p.p) * (m === 'petal' ? .5 : .12); p.y += p.vy; p.rot += .02;
+      if (p.y < -10 || p.y > this.h + 10 || p.x < -10 || p.x > this.w + 10) Object.assign(p, this.make(false));
+      const fl = .55 + .45 * Math.sin(t * (m === 'ember' ? 6 : 2) + p.p); c.globalAlpha = p.a * fl;
+      if (m === 'pixel') { c.fillStyle = `rgb(${this.col})`; c.fillRect(Math.round(p.x), Math.round(p.y), Math.ceil(p.r * 1.3), Math.ceil(p.r * 1.3)); }
+      else if (m === 'petal') { c.fillStyle = '#ffc4d2'; c.save(); c.translate(p.x, p.y); c.rotate(p.rot + Math.sin(t + p.p)); c.beginPath(); c.ellipse(0, 0, p.r, p.r * .55, 0, 0, 7); c.fill(); c.restore(); }
+      else if (m === 'bubble') { c.globalAlpha = p.a * .8; c.strokeStyle = 'rgba(200,255,250,.8)'; c.lineWidth = .8; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.stroke(); c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(p.x - p.r * .4, p.y - p.r * .5, 1, 1); }
+      else if (m === 'ember') { c.fillStyle = fl > .8 ? '#ffe08a' : '#ff7a1a'; c.fillRect(p.x, p.y, p.r * 1.2, p.r * 1.2); }
+      else if (m === 'flake') { c.fillStyle = '#ffffff'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
+      else { c.fillStyle = `rgb(${this.col})`; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
     }
     c.globalAlpha = 1;
   },
@@ -921,7 +1039,14 @@ function orient() {
   let a = 0; if (screen.orientation && typeof screen.orientation.angle === 'number') a = screen.orientation.angle; else if (typeof window.orientation === 'number') a = window.orientation;
   document.documentElement.classList.toggle('rot-neg', a === 270 || a === -90);
 }
-function onResize() { fitViewport(); orient(); setTimeout(() => { FX.resize(); Dust.resize(); Win.init(); if ($('#library').classList.contains('active')) renderLibrary(false); }, 120); }
+let lastW = 0;
+function onResize() {
+  fitViewport(); orient();
+  setTimeout(() => {
+    FX.resize(); Dust.resize(); Win.init();
+    const w = $('#shelves').clientWidth; if (w !== lastW && $('#library').classList.contains('active')) { lastW = w; renderLibrary(false); }
+  }, 120);
+}
 
 /* ---------- main loop ---------- */
 let frameN = 0;
@@ -935,18 +1060,29 @@ function loop() {
 /* ---------- events ---------- */
 function bindEvents() {
   ['pointerdown', 'touchend', 'click'].forEach(ev => document.addEventListener(ev, () => SFX.init(), { capture: true, passive: true }));
-  $('#brandIc').innerHTML = icon('quill'); $('#btnSettings').innerHTML = ui('gear'); $('#sheetX').innerHTML = ui('close');
+  $('#brandIc').innerHTML = icon('quill'); $('#btnSettings').innerHTML = ui('gear'); $('#btnLibSearch').innerHTML = ui('search'); $('#libSearchClose').innerHTML = ui('close'); $('#sheetX').innerHTML = ui('close');
   $('#camBtn').insertAdjacentHTML('afterbegin', ui('camera')); $('#saveBtn').innerHTML = icon('quill'); $('#lbCover').innerHTML = icon('quill');
   const tabs = { log: ['book', 'Journal'], gallery: ['image', 'Memories'], stats: ['chart', 'Stats'] };
   $$('#jtabs button').forEach(b => { const [i, n] = tabs[b.dataset.tab]; b.innerHTML = ui(i) + n; });
 
   $('#btnSettings').onclick = () => { SFX.play('tap'); openSettings(); };
   $('#playerChip').onclick = () => { SFX.play('coin'); openSettings('#grpAch'); };
-  $('#window').onclick = windowTip;
+  $('#window').onclick = toggleCurtains;
   $('#libbar').onclick = e => {
     if (e.target.closest('#btnNew')) { SFX.play('tap'); openEditor(null); }
     else if (e.target.closest('#btnContinue')) { const last = [...S.books].sort((a, b) => (b.updated || 0) - (a.updated || 0))[0]; if (last) openBook(last.id, $(`#shelves .book[data-id="${last.id}"]`)); }
   };
+
+  // library search / sort / arrange
+  $('#btnLibSearch').onclick = () => toggleLibTools();
+  $('#libSearchClose').onclick = () => toggleLibTools(false);
+  $('#libSearch').addEventListener('input', e => { S.libQ = e.target.value; renderLibrary(false); });
+  $('#libSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+  $('#libtools').addEventListener('click', e => {
+    const s = e.target.closest('[data-sort]'), a = e.target.closest('[data-arr]');
+    if (s && s.dataset.sort !== S.settings.shelfSort) { S.settings.shelfSort = s.dataset.sort; saveSettings(); renderLibTools(); SFX.play('shuffle'); $('#shelves').scrollTop = 0; renderLibrary(true); }
+    if (a && a.dataset.arr !== S.settings.shelfStyle) { S.settings.shelfStyle = a.dataset.arr; saveSettings(); renderLibTools(); SFX.play('shuffle'); renderLibrary(true); }
+  });
 
   // shelves: tap = open, long-press = customize
   const sh = $('#shelves'); let lp = null, lpFired = false, sx = 0, sy = 0;
@@ -969,7 +1105,7 @@ function bindEvents() {
       else if (k === 'potion') { SFX.play('glug'); FX.burst(p.x, p.y - 10, { n: 14, angle: -Math.PI / 2, spread: .5, colors: [cssVar('--accent2'), '#fff'], g: .05, max: 3 }); info('+1 HP · Tastes like elderberries'); }
       else if (k === 'candle') { SFX.play('whoosh'); FX.burst(p.x, p.y - 14, { n: 16, angle: -Math.PI / 2, spread: .4, colors: ['#ffb22e', '#ffe27a'], g: -.02, max: 2 }); }
       else if (k === 'pad') { SFX.play('coin'); info('↑ ↑ ↓ ↓ ← → ← → B A'); }
-      else { SFX.play('tap'); }
+      else SFX.play('tap');
     }
   });
 
@@ -998,7 +1134,7 @@ function bindEvents() {
   ta.addEventListener('input', autoGrow);
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitEntry(); } });
   $('#composer').addEventListener('submit', e => { e.preventDefault(); submitEntry(); });
-  $('#saveBtn').addEventListener('pointerdown', e => e.preventDefault()); // keep keyboard open
+  $('#saveBtn').addEventListener('pointerdown', e => e.preventDefault());
   $('#photoIn').addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
     try { J.photo = await readImage(f); SFX.play('camera'); renderPhotoPreview(); const p = ptOf($('#camBtn')); FX.burst(p.x, p.y, { n: 18, colors: ['#fff', '#ffe'], g: .02, max: 3 }); }
@@ -1010,22 +1146,23 @@ function bindEvents() {
   $('#sheetBg').onclick = () => { SFX.play('tap'); sheetClose(); };
   $('#sheetX').onclick = () => { SFX.play('tap'); sheetClose(); };
   $('#sheetBody').addEventListener('input', e => {
-    if (e.target.id === 'edTitle') { E.draft.title = e.target.value; const st = $('#pvStage'); if (st) { st.querySelectorAll('.stitle,.ctitle').forEach(n => n.textContent = e.target.value || 'Untitled Quest'); } }
+    if (e.target.id === 'edTitle') { E.draft.title = e.target.value; const st = $('#pvStage'); if (st) st.querySelectorAll('.stitle,.ctitle').forEach(n => n.textContent = e.target.value || 'Untitled Quest'); }
     if (e.target.id === 'edColor') { E.draft.color = e.target.value; syncEditorUI(); renderPreview(null); }
     if (e.target.id === 'volIn') { S.settings.volume = +e.target.value; SFX.setVol(S.settings.volume); saveSettings(); }
   });
   $('#sheetBody').addEventListener('change', e => { if (e.target.id === 'volIn') SFX.play('coin'); });
   $('#sheetBody').addEventListener('click', async e => {
     const k = e.target.closest('[data-k]');
-    if (k && sheetKind === 'editor') { E.draft[k.dataset.k] = k.dataset.v; syncEditorUI(); renderPreview(k.dataset.k === 'type' ? 'spin' : 'pop'); SFX.play(k.dataset.k === 'type' ? 'flip' : 'tap'); return; }
+    if (k && sheetKind === 'editor') { E.draft[k.dataset.k] = k.dataset.v; syncEditorUI(); renderPreview(k.dataset.k === 'type' ? 'spin' : 'pop'); SFX.play(k.dataset.k === 'type' || k.dataset.k === 'pose' ? 'flip' : 'tap'); return; }
     const th = e.target.closest('[data-theme-id]'); if (th) { if (th.dataset.themeId !== S.settings.theme) applyTheme(th.dataset.themeId, th); return; }
     const a = e.target.closest('[data-act]'); if (!a) return;
     switch (a.dataset.act) {
-      case 'random': { E.draft = randomBook(true); E.draft.title = $('#edTitle').value; SFX.play('dice'); syncEditorUI(); renderPreview('spin'); const p = ptOf(a); FX.burst(p.x, p.y, { n: 20, shape: 'conf' }); break; }
+      case 'random': { E.draft = randomBook(); E.draft.title = $('#edTitle').value; SFX.play('dice'); syncEditorUI(); renderPreview('spin'); const p = ptOf(a); FX.burst(p.x, p.y, { n: 20, shape: 'conf' }); break; }
       case 'savebook': await saveBook(); break;
       case 'delbook': await deleteBook(); break;
       case 'sound': S.settings.sound = !S.settings.sound; saveSettings(); a.classList.toggle('on', S.settings.sound); SFX.play('coin'); break;
       case 'dust': S.settings.dust = !S.settings.dust; saveSettings(); a.classList.toggle('on', S.settings.dust); if (!S.settings.dust) Dust.clear(); SFX.play('tap'); break;
+      case 'curtains': toggleCurtains(); a.classList.toggle('on', S.settings.curtains !== 'closed'); break;
       case 'loc': { a.textContent = 'Locating…'; const l = await requestLocation(); if (l) { await refreshWeather(true); SFX.play('chime'); info(`Sky synced · ${COND_NAMES[SKY.cond]}`); } else { SFX.play('error'); info('Location unavailable. Check Settings › Privacy › Location Services for Safari Websites.', 3200); } openSettings('#grpWin'); break; }
       case 'sky': { if (!S.settings.location) { info('Set your location first.'); break; } a.textContent = 'Refreshing…'; const ok = await refreshWeather(true); SFX.play(ok ? 'chime' : 'error'); info(ok ? `Sky synced · ${COND_NAMES[SKY.cond]}, ${PHASE_NAMES[SKY.phase]}` : 'Could not reach the weather service.'); openSettings('#grpWin'); break; }
       case 'export': await exportLibrary(); break;
@@ -1046,11 +1183,12 @@ function bindEvents() {
 
 async function boot() {
   loadLocal(); fitViewport(); orient();
-  document.body.dataset.theme = S.settings.theme; applyTheme(S.settings.theme);
+  document.body.dataset.theme = S.settings.theme;
   bindEvents();
-  try { await DB.open(); S.books = await DB.all('books'); S.entryCount = await DB.count('entries'); }
+  try { await DB.open(); S.books = await DB.all('books'); await recount(); }
   catch (e) { console.error(e); info('Storage is unavailable (Private Browsing?). Entries may not save.', 4000); }
-  FX.init(); Dust.init(); applyWeather(); Win.init(); updatePlayer(); renderLibrary(false);
+  FX.init(); Dust.init(); applyTheme(S.settings.theme); setCurtains(S.settings.curtains !== 'closed', false);
+  applyWeather(); Win.init(); updatePlayer(); lastW = $('#shelves').clientWidth; renderLibrary(false);
   requestAnimationFrame(loop);
   setInterval(computePhase, 60 * 1000); setInterval(() => skyMaintenance(), 5 * 60 * 1000); setInterval(idleWiggle, 7000);
   if (!S.settings.introDone) introPressStart(); else { introReturning(); skyMaintenance(); }

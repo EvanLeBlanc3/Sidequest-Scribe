@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Cinzel:wght@600;800&family=MedievalSharp&family=Orbitron:wght@600;800&family=Patrick+Hand&family=Pirata+One&family=Press+Start+2P&family=Special+Elite&family=Uncial+Antiqua&family=VT323&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body data-theme="classic" data-phase="day">
+<body data-theme="classic" data-phase="day" data-curtains="open">
 <div id="app">
 
   <!-- ============ LIBRARY ============ -->
@@ -31,8 +31,15 @@
           <span class="brand-ic" id="brandIc"></span>
           <div><h1>Sidequest Scribe</h1><small id="libStats">Your quest library</small></div>
         </div>
+        <button class="iconbtn" id="btnLibSearch" aria-label="Search and sort shelves"></button>
         <button class="iconbtn" id="btnSettings" aria-label="Settings"></button>
       </header>
+
+      <div class="libtools" id="libtools" hidden>
+        <div class="srow"><input id="libSearch" type="search" placeholder="Search your shelves…" autocomplete="off"><button class="jbtn" id="libSearchClose" aria-label="Close search"></button></div>
+        <div class="tagrow" id="sortRow"></div>
+        <div class="tagrow" id="arrRow"></div>
+      </div>
 
       <button class="player" id="playerChip" aria-label="Player profile">
         <span class="lv">LV<b id="pLv">1</b></span>
@@ -41,12 +48,13 @@
 
       <div class="sconce"><div class="flame"><i></i></div><div class="holder"></div><div class="neon-sign"></div></div>
 
-      <div class="window-wrap">
-        <div class="window" id="window" aria-label="Window showing the sky outside">
+      <div class="window-wrap" id="windowWrap">
+        <div class="window" id="window" aria-label="Window — tap to open or close the curtains">
           <canvas id="skycv"></canvas>
-          <div class="glass"></div><div class="mull-v"></div><div class="mull-h"></div>
+          <div class="wdeco"></div><div class="glass"></div><div class="mull-v"></div><div class="mull-h"></div>
         </div>
         <div class="sill"></div>
+        <div class="curtains"><div class="drape l"></div><div class="drape r"></div><div class="rod"></div></div>
         <div class="wtip" id="wtip"></div>
       </div>
 

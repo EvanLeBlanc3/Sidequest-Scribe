@@ -1,29 +1,19 @@
-# Sidequest Scribe 📖🎮
+# Sidequest Scribe 📖🎮  (v1.1)
 
-A library-themed quest journal for all your games. Runs on iPhone as an installable, offline web app.
+A library-themed quest journal for all your games. It runs on iPhone as an installable, offline web app.
 
 ## Install with GitHub Pages
-1. Create a new **public** repo on GitHub, for example `sidequest-scribe`.
-2. Unzip this folder, then upload **everything inside it** to the root of the repo:
-   `index.html`, `styles.css`, `app.js`, `sw.js`, `manifest.webmanifest`, `README.md`, and the `icons/` folder.
-3. Go to **Settings → Pages**. Under *Build and deployment*, choose **Deploy from a branch**, then pick **main** and **/ (root)**, and click **Save**.
-4. Wait about a minute, then open `https://<your-username>.github.io/sidequest-scribe/` in **Safari** on your iPhone.
-5. Tap **Share → Add to Home Screen**, then launch it from the new icon.
+1. Upload **everything in this folder** to the root of your GitHub repo: `index.html`, `styles.css`, `app.js`, `sw.js`, `manifest.webmanifest`, and the `icons/` folder. Replace the old files if you're updating.
+2. Go to **Settings → Pages → Deploy from a branch → main / (root)**.
+3. Open the Pages link in **Safari** on your iPhone, then tap **Share → Add to Home Screen**.
 
-## Using it
-- **Tap a book** to pull it off the shelf and open it. **Press and hold a book** to customize it.
-- **Type a note and press Enter (send)**, or tap the quill, to log an entry. It gets the date and time automatically.
-- **Use the camera button** to take a photo or pick a screenshot from your library.
-- **Use the tag chips** (Boss, Loot, Lore, Died, Secret, Milestone…) to label entries. Search and filter them with the magnifier.
-- **Check the Memories and Stats tabs** to see your screenshot wall, streaks, peak gaming hour, and more.
-- **Open ⚙ Settings** to change the theme, control sound, update weather and location, back up and restore, and view achievements.
+## What's new in 1.1
+- **Curtains**: tap the window to open or close them. You can also use the switch in ⚙ Settings → Window.
+- **Themed windows**: each library theme has its own window style, such as an arched oak window, a crystal-rune arch, a neon frame, a pixel frame, a frosted pane, a starship porthole, a cobwebbed manor window, a sakura moon window, an iron forge grate, or a brass Atlantis porthole.
+- **4 new themes**: Haunted Manor, Sakura Tea House, Dwarven Forge, and Sunken Atlantis. Each theme has its own floating particles: dust, petals, embers, bubbles, or snow.
+- **Shelf poses**: books can stand, lean on each other, or lie flat in stacks. Choose a pose per book in the editor, or leave it on **Auto**.
+- **🔍 Shelf search & sort**: search by title or platform. Sort by Shelf Order, Last Played, A–Z, Newest, Platform, Color, Most Entries, or Book Type. Arrange shelves as **Tidy**, **Cozy**, or **Chaotic**.
+- **Pinned preview**: in the book editor, the preview stays in view while you scroll through the options.
 
 ## Backups
-Go to **Settings → Export Library**, then tap **Save Backup** and choose **Save to Files** or iCloud Drive.
-To restore, go to **Settings → Restore** and pick the `.json` file. Restoring replaces the current library.
-
-## Sky window
-The window uses the free **Open-Meteo** API, so you don't need an API key. Your location is checked again every 30 days, and the sky refreshes every 30 minutes while the app is open. Time of day follows your real sunrise and sunset.
-
-## Updating later
-After you change files, bump `CACHE` in `sw.js`, for example `v1.0.1`, so iPhones pick up the new version.
+Go to **⚙ → Export Library → Save Backup → Save to Files**. To restore, go to **⚙ → Restore**.
